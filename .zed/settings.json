@@ -1,4 +1,5 @@
 {
+  "file_scan_exclusions": ["**/routeTree.gen.ts", "node_modules", ".cache", "**/build/*", "*.log"],
   "lsp": {
     "oxlint": {
       "initialization_options": {

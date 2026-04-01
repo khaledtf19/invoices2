@@ -1,13 +1,12 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "unicorn",
-    "typescript",
-    "oxc",
-    "react"
-  ],
+  "ignorePatterns": ["dist/**", "coverage/**", "vendor/**", "test/snapshots/**"],
+  "plugins": ["unicorn", "typescript", "oxc", "react"],
   "options": {
     "typeAware": true,
     "typeCheck": true
+  },
+  "rules": {
+    "react-refresh/only-export-components": "warn"
   }
 }
