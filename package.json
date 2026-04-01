@@ -1,0 +1,21 @@
+{
+  "name": "my-app",
+  "private": true,
+  "workspaces": [
+    "apps/frontend",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend": "cargo run -p backend",
+    "dev": "concurrently \"pnpm dev:backend\" \"pnpm dev:frontend\"",
+    "fmt": "oxfmt -c .oxfmtrc.jsonc",
+    "lint": "oxlint -c .oxlintrc.json --deny-warnings --report-unused-disable-directives"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.0",
+    "oxfmt": "^0.43.0",
+    "oxlint": "^1.58.0",
+    "oxlint-tsgolint": "^0.19.0"
+  }
+}
