@@ -1,0 +1,6 @@
+packages:
+  - "apps/frontend"
+  - "packages/*"
+allowBuilds:
+  msgpackr-extract: false
+  msw: set this to true or false

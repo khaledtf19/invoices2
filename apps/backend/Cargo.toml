@@ -23,3 +23,5 @@ rand = "0.8"
 hmac = "0.12"
 digest = "0.10"
 envy = "0.4"
+ts-rs = { version = "12.0", features = ["uuid-impl","serde-json-impl", "chrono-impl"] }
+tracing = "0.1"

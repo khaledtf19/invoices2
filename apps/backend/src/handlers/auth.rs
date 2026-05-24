@@ -1,39 +1,44 @@
 use axum::{
+    Json,
     extract::{Extension, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::{
     error::ApiError,
     middleware::auth::AuthenticatedUser,
     models::user::{RefreshToken, User},
+    response::ApiResponse,
     services::auth::AuthService,
     state::AppState,
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(TS, Debug, Deserialize)]
+#[ts(export, export_to = "Auth.ts", rename_all = "camelCase")]
 pub struct RegisterRequest {
     pub email: String,
-    pub first_name: String,
-    pub last_name: String,
     pub password: String,
+    pub confirm_password: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(TS, Debug, Deserialize)]
+#[ts(export, export_to = "Auth.ts")]
 pub struct LoginRequest {
     pub email: String,
     pub password: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(TS, Debug, Deserialize)]
+#[ts(export, export_to = "Auth.ts")]
 pub struct RefreshRequest {
     pub refresh_token: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(TS, Debug, Serialize)]
+#[ts(export, export_to = "Auth.ts")]
 pub struct AuthResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -41,7 +46,8 @@ pub struct AuthResponse {
     pub expires_in: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(TS, Debug, Serialize)]
+#[ts(export, export_to = "Auth.ts")]
 pub struct UserResponse {
     pub id: String,
     pub email: String,
@@ -63,7 +69,7 @@ impl From<User> for UserResponse {
 pub async fn register(
     State(state): State<AppState>,
     Json(payload): Json<RegisterRequest>,
-) -> Result<Json<AuthResponse>, ApiError> {
+) -> Result<ApiResponse<AuthResponse>, ApiError> {
     let auth_service = AuthService::new(
         state.config.jwt_secret.clone(),
         state.config.jwt_access_expiry,
@@ -74,23 +80,20 @@ pub async fn register(
         return Err(ApiError::UserAlreadyExists);
     }
 
+    if payload.password != payload.confirm_password {
+        return Err(ApiError::InvalidCredentials);
+    }
+
     let password_hash = auth_service.hash_password(&payload.password)?;
 
-    let user = User::create(
-        &state.db,
-        &payload.email,
-        &payload.first_name,
-        &payload.last_name,
-        &password_hash,
-    )
-    .await?;
+    let user = User::create(&state.db, &payload.email, &password_hash).await?;
 
     let access_token = auth_service.generate_access_token(user.id, &user.email)?;
     let (refresh_token, refresh_hash, expires_at) = auth_service.generate_refresh_token();
 
     RefreshToken::create(&state.db, user.id, &refresh_hash, expires_at).await?;
 
-    Ok(Json(AuthResponse {
+    Ok(ApiResponse::ok(AuthResponse {
         access_token,
         refresh_token,
         token_type: "Bearer".to_string(),
@@ -101,7 +104,7 @@ pub async fn register(
 pub async fn login(
     State(state): State<AppState>,
     Json(payload): Json<LoginRequest>,
-) -> Result<Json<AuthResponse>, ApiError> {
+) -> Result<ApiResponse<AuthResponse>, ApiError> {
     let auth_service = AuthService::new(
         state.config.jwt_secret.clone(),
         state.config.jwt_access_expiry,
@@ -121,7 +124,7 @@ pub async fn login(
 
     RefreshToken::create(&state.db, user.id, &refresh_hash, expires_at).await?;
 
-    Ok(Json(AuthResponse {
+    Ok(ApiResponse::ok(AuthResponse {
         access_token,
         refresh_token,
         token_type: "Bearer".to_string(),
@@ -132,7 +135,7 @@ pub async fn login(
 pub async fn refresh(
     State(state): State<AppState>,
     Json(payload): Json<RefreshRequest>,
-) -> Result<Json<AuthResponse>, ApiError> {
+) -> Result<ApiResponse<AuthResponse>, ApiError> {
     let auth_service = AuthService::new(
         state.config.jwt_secret.clone(),
         state.config.jwt_access_expiry,
@@ -165,7 +168,7 @@ pub async fn refresh(
 
     RefreshToken::create(&state.db, user.id, &refresh_hash, expires_at).await?;
 
-    Ok(Json(AuthResponse {
+    Ok(ApiResponse::ok(AuthResponse {
         access_token,
         refresh_token,
         token_type: "Bearer".to_string(),
@@ -184,10 +187,10 @@ pub async fn logout(
 pub async fn me(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthenticatedUser>,
-) -> Result<Json<UserResponse>, ApiError> {
+) -> Result<ApiResponse<UserResponse>, ApiError> {
     let user = User::find_by_id(&state.db, auth_user.user_id)
         .await?
         .ok_or(ApiError::UserNotFound)?;
 
-    Ok(Json(UserResponse::from(user)))
+    Ok(ApiResponse::ok(UserResponse::from(user)))
 }

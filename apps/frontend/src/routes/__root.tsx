@@ -1,20 +1,88 @@
-import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
+import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { Home, FileText, LogInIcon, User } from "lucide-react";
+
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+const navItems = [
+  { title: "Home", url: "/", icon: Home },
+  { title: "About", url: "/about", icon: FileText },
+  { title: "Register", url: "/register", icon: User },
+  { title: "Login", url: "/login", icon: LogInIcon },
+];
+
+const AppSidebar = () => {
+  const location = useLocation();
+
+  return (
+    <Sidebar>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link to="/">
+                <span className="text-lg font-semibold">Invoices</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location.pathname === item.url} tooltip={item.title}>
+                    <Link to={item.url}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarTrigger />
+      </SidebarFooter>
+
+      <SidebarRail />
+    </Sidebar>
+  );
+};
 
 const RootLayout = () => (
-  <>
-    <div className="flex gap-2 p-2">
-      <Link to="/" className="[&.active]:font-bold">
-        Home
-      </Link>{" "}
-      <Link to="/about" className="[&.active]:font-bold">
-        About
-      </Link>
-    </div>
-    <hr />
-    <Outlet />
-    <TanStackRouterDevtools />
-  </>
+  <SidebarProvider>
+    <TooltipProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <Outlet />
+        <TanStackRouterDevtools />
+      </SidebarInset>
+    </TooltipProvider>
+  </SidebarProvider>
 );
 
 export const Route = createRootRoute({ component: RootLayout });

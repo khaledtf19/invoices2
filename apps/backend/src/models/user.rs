@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(ts_rs::TS, Debug, Clone, Serialize, Deserialize, FromRow)]
+#[ts(export)]
 pub struct User {
     pub id: Uuid,
     pub email: String,
@@ -13,14 +14,6 @@ pub struct User {
     pub password_hash: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct CreateUser {
-    pub email: String,
-    pub first_name: String,
-    pub last_name: String,
-    pub password: String,
 }
 
 #[derive(Debug, Clone, FromRow)]
@@ -33,10 +26,13 @@ pub struct RefreshToken {
 }
 
 impl User {
-    pub async fn find_by_email(db: &sqlx::PgPool, email: &str) -> Result<Option<Self>, sqlx::Error> {
+    pub async fn find_by_email(
+        db: &sqlx::PgPool,
+        email: &str,
+    ) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, User>(
-            "SELECT id, email, first_name, last_name, password_hash, created_at, updated_at 
-             FROM users WHERE email = $1"
+            "SELECT id, email, first_name, last_name, password_hash, created_at, updated_at
+             FROM users WHERE email = $1",
         )
         .bind(email)
         .fetch_optional(db)
@@ -45,8 +41,8 @@ impl User {
 
     pub async fn find_by_id(db: &sqlx::PgPool, id: Uuid) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, User>(
-            "SELECT id, email, first_name, last_name, password_hash, created_at, updated_at 
-             FROM users WHERE id = $1"
+            "SELECT id, email, first_name, last_name, password_hash, created_at, updated_at
+             FROM users WHERE id = $1",
         )
         .bind(id)
         .fetch_optional(db)
@@ -56,18 +52,14 @@ impl User {
     pub async fn create(
         db: &sqlx::PgPool,
         email: &str,
-        first_name: &str,
-        last_name: &str,
         password_hash: &str,
     ) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, User>(
-            "INSERT INTO users (email, first_name, last_name, password_hash)
-             VALUES ($1, $2, $3, $4)
-             RETURNING id, email, first_name, last_name, password_hash, created_at, updated_at"
+            "INSERT INTO users (email, password_hash)
+             VALUES ($1, $2)
+             RETURNING id, email, password_hash, created_at, updated_at",
         )
         .bind(email)
-        .bind(first_name)
-        .bind(last_name)
         .bind(password_hash)
         .fetch_one(db)
         .await
@@ -92,7 +84,7 @@ impl RefreshToken {
         sqlx::query_as::<_, RefreshToken>(
             "INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
              VALUES ($1, $2, $3)
-             RETURNING id, user_id, token_hash, expires_at, created_at"
+             RETURNING id, user_id, token_hash, expires_at, created_at",
         )
         .bind(user_id)
         .bind(token_hash)
@@ -106,8 +98,8 @@ impl RefreshToken {
         token_hash: &str,
     ) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, RefreshToken>(
-            "SELECT id, user_id, token_hash, expires_at, created_at 
-             FROM refresh_tokens WHERE token_hash = $1"
+            "SELECT id, user_id, token_hash, expires_at, created_at
+             FROM refresh_tokens WHERE token_hash = $1",
         )
         .bind(token_hash)
         .fetch_optional(db)
