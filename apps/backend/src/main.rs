@@ -10,7 +10,7 @@ mod services;
 mod state;
 
 use axum::{Router, http::Method, routing::get};
-use serde_json::{Value, json};
+use serde_json::Value;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::{
@@ -19,13 +19,13 @@ use crate::{
 };
 
 async fn health_check() -> Result<response::ApiResponse<Value>, error::ApiError> {
-    Err(error::ApiError::InvalidCredentials)
+    Ok(response::ApiResponse::ok(
+        serde_json::json!({ "status": "ok" }),
+    ))
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv::dotenv().ok();
-
     let config = config::Config::from_env()?;
 
     let pool = create_pool(&config.database_url).await?;
@@ -35,10 +35,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = AppState::new(pool, config);
 
     let cors = CorsLayer::new()
-        .allow_origin(AllowOrigin::list([
-            "http://localhost:5173".parse().unwrap(),
-            "http://localhost:3000".parse().unwrap(),
-        ]))
+        .allow_origin(AllowOrigin::list(["http://localhost:5173"
+            .parse()
+            .unwrap()]))
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers([
             "content-type".parse().unwrap(),
@@ -47,14 +46,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ])
         .allow_credentials(true);
 
+    tracing_subscriber::fmt::init();
+
     let app = Router::new()
         .route("/health", get(health_check))
         .nest("/auth", auth_routes(state.clone()))
         .nest("/invoices", invoice_routes(state.clone()))
         .layer(cors);
-
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-    println!("Server is running on http://0.0.0.0:3000");
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+    let addr: std::net::SocketAddr = format!("0.0.0.0:{}", port).parse()?;
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    println!("Server is running on http://0.0.0.0:{}", port);
     axum::serve(listener, app).await?;
 
     Ok(())

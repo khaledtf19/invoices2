@@ -1,7 +1,7 @@
-import { API_BASE, safeFetch } from "./utils";
+import { safeFetch } from "./utils";
 
 const getHealth = async () => {
-  const result = await safeFetch<string>(`${API_BASE}/health`);
+  const result = await safeFetch<string>(`/health`);
   return result;
 };
 

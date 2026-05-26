@@ -30,8 +30,16 @@ export type ApiResponse<T> = {
 
 export async function safeFetch<T>(url: string, options?: RequestInit): Promise<Result<ApiResponse<T>, FetchError>> {
   // 1. Network
+  const { body, ...restOptions } = options ?? {};
   const responseResult = await Result.tryPromise({
-    try: () => fetch(`${API_BASE}${url}`, options),
+    try: () => {
+      console.log(`${API_BASE}${url}`, options);
+      return fetch(`${API_BASE}${url}`, {
+        ...restOptions,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    },
     catch: (e): NetworkError => new NetworkError({ message: String(e), url, apiError: null }),
   });
 

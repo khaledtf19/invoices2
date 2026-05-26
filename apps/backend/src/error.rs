@@ -91,3 +91,10 @@ impl IntoResponse for ApiError {
         (status, body).into_response()
     }
 }
+
+// impl From<sqlx::Error> for ApiError {
+//     fn from(e: sqlx::Error) -> Self {
+//         tracing::error!("DB error: {:?}", e); // ← add this
+//         ApiError::DatabaseError((e))
+//     }
+// }

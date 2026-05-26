@@ -8,8 +8,6 @@ use uuid::Uuid;
 pub struct User {
     pub id: Uuid,
     pub email: String,
-    pub first_name: String,
-    pub last_name: String,
     #[serde(skip_serializing)]
     pub password_hash: String,
     pub created_at: DateTime<Utc>,

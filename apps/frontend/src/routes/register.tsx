@@ -44,6 +44,7 @@ function RegisterPage() {
     onSubmit: async ({ value }) => {
       try {
         await register.mutateAsync(value as RegisterRequest);
+
         toast.success("Account created successfully");
         await navigate({ to: "/login" });
       } catch (err: any) {

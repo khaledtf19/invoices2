@@ -2,7 +2,7 @@ import { type RegisterRequest, type LoginRequest, type RefreshRequest, type Auth
 import { safeFetch } from "./utils";
 
 export const register = async (request: RegisterRequest) => {
-  return safeFetch<AuthResponse>("/api/auth/register", {
+  return safeFetch<AuthResponse>("/auth/register", {
     method: "POST",
     body: request as any,
   });

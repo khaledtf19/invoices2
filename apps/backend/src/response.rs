@@ -20,12 +20,12 @@ impl<T: Serialize> ApiResponse<T> {
         }
     }
 
-    pub fn created(data: T) -> Self {
-        Self {
-            status_code: StatusCode::CREATED,
-            data,
-        }
-    }
+    // pub fn created(data: T) -> Self {
+    //     Self {
+    //         status_code: StatusCode::CREATED,
+    //         data,
+    //     }
+    // }
 }
 
 impl<T: Serialize> IntoResponse for ApiResponse<T> {

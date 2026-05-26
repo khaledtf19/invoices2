@@ -5,6 +5,7 @@ use axum::{
     response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::ser;
 use ts_rs::TS;
 
 use crate::{
@@ -16,7 +17,8 @@ use crate::{
     state::AppState,
 };
 
-#[derive(TS, Debug, Deserialize)]
+#[derive(TS, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "Auth.ts", rename_all = "camelCase")]
 pub struct RegisterRequest {
     pub email: String,
@@ -24,7 +26,8 @@ pub struct RegisterRequest {
     pub confirm_password: String,
 }
 
-#[derive(TS, Debug, Deserialize)]
+#[derive(TS, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "Auth.ts")]
 pub struct LoginRequest {
     pub email: String,
@@ -51,8 +54,6 @@ pub struct AuthResponse {
 pub struct UserResponse {
     pub id: String,
     pub email: String,
-    pub first_name: String,
-    pub last_name: String,
 }
 
 impl From<User> for UserResponse {
@@ -60,8 +61,6 @@ impl From<User> for UserResponse {
         Self {
             id: user.id.to_string(),
             email: user.email,
-            first_name: user.first_name,
-            last_name: user.last_name,
         }
     }
 }
