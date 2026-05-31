@@ -1,12 +1,8 @@
-use argon2::password_hash::rand_core::RngCore;
-use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
-    Argon2,
-};
 use chrono::{Duration, Utc};
 use digest::Digest;
 use hmac::{Hmac, Mac};
 use jwt::{Header, SignWithKey, Token, VerifyWithKey};
+use rand::{RngCore, rngs::OsRng};
 use sha2::Sha256;
 use uuid::Uuid;
 
@@ -25,7 +21,7 @@ pub struct AuthService {
 pub struct AccessTokenClaims {
     pub sub: String,
     pub email: String,
-    pub user_id: String,
+    pub user_id: Uuid,
     pub exp: usize,
     pub iat: usize,
 }
@@ -51,23 +47,6 @@ impl AuthService {
         Hmac::new_from_slice(self.jwt_secret.as_bytes()).expect("HMAC can take key of any size")
     }
 
-    pub fn hash_password(&self, password: &str) -> Result<String, ApiError> {
-        let salt = SaltString::generate(&mut OsRng);
-        let argon2 = Argon2::default();
-        let hash = argon2
-            .hash_password(password.as_bytes(), &salt)
-            .map_err(|e| ApiError::PasswordHashError(e.to_string()))?;
-        Ok(hash.to_string())
-    }
-
-    pub fn verify_password(&self, password: &str, hash: &str) -> Result<bool, ApiError> {
-        let parsed_hash =
-            PasswordHash::new(hash).map_err(|e| ApiError::PasswordHashError(e.to_string()))?;
-        Ok(Argon2::default()
-            .verify_password(password.as_bytes(), &parsed_hash)
-            .is_ok())
-    }
-
     pub fn generate_access_token(&self, user_id: Uuid, email: &str) -> Result<String, ApiError> {
         let now = Utc::now();
         let expiry = now + Duration::seconds(self.access_expiry_secs);
@@ -75,7 +54,7 @@ impl AuthService {
         let claims = AccessTokenClaims {
             sub: email.to_string(),
             email: email.to_string(),
-            user_id: user_id.to_string(),
+            user_id: user_id,
             exp: expiry.timestamp() as usize,
             iat: now.timestamp() as usize,
         };
@@ -98,7 +77,7 @@ impl AuthService {
         let token_hash = Self::hash_token(&token);
         let expiry = Utc::now() + Duration::days(self.refresh_expiry_days);
 
-        (token, token_hash, expiry)
+        (token.to_string(), token_hash, expiry)
     }
 
     pub fn verify_access_token(&self, token_str: &str) -> Result<AccessTokenClaims, ApiError> {

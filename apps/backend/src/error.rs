@@ -21,8 +21,6 @@ pub enum ApiError {
     InvalidToken,
     #[error("Token expired")]
     TokenExpired,
-    #[error("Password hash error")]
-    PasswordHashError(String),
 
     #[error("Internal server error")]
     #[ts(type = "string")]
@@ -56,11 +54,6 @@ impl IntoResponse for ApiError {
             ApiError::InvalidToken => (StatusCode::UNAUTHORIZED, "INVALID_TOKEN", self.to_string()),
             ApiError::TokenExpired => (StatusCode::UNAUTHORIZED, "TOKEN_EXPIRED", self.to_string()),
             ApiError::Unauthorized => (StatusCode::UNAUTHORIZED, "UNAUTHORIZED", self.to_string()),
-            ApiError::PasswordHashError(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "PASSWORD_HASH_ERROR",
-                "Password processing error".to_string(),
-            ),
             ApiError::InternalError(e) => {
                 tracing::error!("Internal error: {e:?}");
                 (

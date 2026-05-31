@@ -1,13 +1,14 @@
-import { type RegisterRequest, type LoginRequest, type RefreshRequest, type AuthResponse } from "@/types/bindings/Auth";
+import { type RefreshRequest, type AuthResponse } from "@/types/bindings/Auth";
+import type { UserResponse } from "@/types/bindings/UserResponse";
 import { safeFetch } from "./utils";
 
-export const register = async (request: RegisterRequest) => {
-  return safeFetch<AuthResponse>("/auth/register", {
+export const refresh = async (request: RefreshRequest) => {
+  return safeFetch<AuthResponse>("/auth/refresh", {
     method: "POST",
     body: request as any,
   });
 };
 
-export const login = async (request: LoginRequest) => {};
-
-export const refresh = async (request: RefreshRequest) => {};
+export const me = async () => {
+  return safeFetch<UserResponse>("/auth/me");
+};

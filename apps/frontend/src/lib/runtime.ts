@@ -1,4 +1,4 @@
 import { ManagedRuntime } from "effect";
-import { BrowserHttpClient } from "@effect/platform-browser";
+import * as BrowserHttpClient from "@effect/platform-browser/BrowserHttpClient";
 
-export const runtime = ManagedRuntime.make(BrowserHttpClient);
+export const runtime = ManagedRuntime.make(BrowserHttpClient.layerXMLHttpRequest);

@@ -29,7 +29,7 @@ impl Invoice {
     pub async fn find_by_id(db: &sqlx::PgPool, id: Uuid) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, Invoice>(
             "SELECT id, user_id, customer_id, cost, created_at, updated_at 
-             FROM invoices WHERE id = $1"
+             FROM invoices WHERE id = $1",
         )
         .bind(id)
         .fetch_optional(db)
@@ -49,7 +49,7 @@ impl Invoice {
             "SELECT id, user_id, customer_id, cost, created_at, updated_at 
              FROM invoices WHERE user_id = $1 
              ORDER BY created_at DESC 
-             LIMIT $2 OFFSET $3"
+             LIMIT $2 OFFSET $3",
         )
         .bind(user_id)
         .bind(limit)
@@ -66,7 +66,7 @@ impl Invoice {
         sqlx::query_as::<_, Invoice>(
             "SELECT id, user_id, customer_id, cost, created_at, updated_at 
              FROM invoices WHERE user_id = $1 AND customer_id = $2 
-             ORDER BY created_at DESC"
+             ORDER BY created_at DESC",
         )
         .bind(user_id)
         .bind(customer_id)
@@ -83,7 +83,7 @@ impl Invoice {
         sqlx::query_as::<_, Invoice>(
             "INSERT INTO invoices (id, user_id, customer_id, cost, created_at, updated_at)
              VALUES ($1, $2, $3, $4, NOW(), NOW())
-             RETURNING id, user_id, customer_id, cost, created_at, updated_at"
+             RETURNING id, user_id, customer_id, cost, created_at, updated_at",
         )
         .bind(Uuid::new_v4())
         .bind(user_id)
@@ -116,7 +116,7 @@ impl Invoice {
             "UPDATE invoices 
              SET customer_id = $1, cost = $2, updated_at = NOW()
              WHERE id = $3
-             RETURNING id, user_id, customer_id, cost, created_at, updated_at"
+             RETURNING id, user_id, customer_id, cost, created_at, updated_at",
         )
         .bind(new_customer_id)
         .bind(new_cost)
@@ -135,12 +135,11 @@ impl Invoice {
     }
 
     pub async fn count_by_user(db: &sqlx::PgPool, user_id: Uuid) -> Result<i64, sqlx::Error> {
-        let result: Option<(i64,)> = sqlx::query_as(
-            "SELECT COUNT(*) FROM invoices WHERE user_id = $1"
-        )
-        .bind(user_id)
-        .fetch_optional(db)
-        .await?;
+        let result: Option<(i64,)> =
+            sqlx::query_as("SELECT COUNT(*) FROM invoices WHERE user_id = $1")
+                .bind(user_id)
+                .fetch_optional(db)
+                .await?;
 
         Ok(result.map(|(c,)| c).unwrap_or(0))
     }

@@ -18,6 +18,8 @@ use crate::{
     state::AppState,
 };
 
+use crate::services::oauth::build_oauth_client;
+
 async fn health_check() -> Result<response::ApiResponse<Value>, error::ApiError> {
     Ok(response::ApiResponse::ok(
         serde_json::json!({ "status": "ok" }),
@@ -27,17 +29,22 @@ async fn health_check() -> Result<response::ApiResponse<Value>, error::ApiError>
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = config::Config::from_env()?;
+    let frontend_origin = config.frontend_url.parse()?;
 
     let pool = create_pool(&config.database_url).await?;
 
     sqlx::migrate!("src/db/migrations").run(&pool).await?;
 
-    let state = AppState::new(pool, config);
+    let oauth_client = build_oauth_client(
+        config.google_client_id.clone(),
+        config.google_client_secret.clone(),
+        config.google_redirect_url.clone(),
+    )?;
+
+    let state = AppState::new(pool, config, oauth_client);
 
     let cors = CorsLayer::new()
-        .allow_origin(AllowOrigin::list(["http://localhost:5173"
-            .parse()
-            .unwrap()]))
+        .allow_origin(AllowOrigin::exact(frontend_origin))
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers([
             "content-type".parse().unwrap(),

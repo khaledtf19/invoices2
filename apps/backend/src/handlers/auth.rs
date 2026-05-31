@@ -1,38 +1,18 @@
-use axum::{
-    Json,
-    extract::{Extension, State},
-    http::StatusCode,
-    response::IntoResponse,
-};
+use time::Duration;
+
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
-use serde_json::ser;
 use ts_rs::TS;
+
+use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 
 use crate::{
     error::ApiError,
-    middleware::auth::AuthenticatedUser,
-    models::user::{RefreshToken, User},
+    models::{token::RefreshToken, user::User},
     response::ApiResponse,
-    services::auth::AuthService,
+    services::auth::{AccessTokenClaims, AuthService},
     state::AppState,
 };
-
-#[derive(TS, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "Auth.ts", rename_all = "camelCase")]
-pub struct RegisterRequest {
-    pub email: String,
-    pub password: String,
-    pub confirm_password: String,
-}
-
-#[derive(TS, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "Auth.ts")]
-pub struct LoginRequest {
-    pub email: String,
-    pub password: String,
-}
 
 #[derive(TS, Debug, Deserialize)]
 #[ts(export, export_to = "Auth.ts")]
@@ -43,8 +23,6 @@ pub struct RefreshRequest {
 #[derive(TS, Debug, Serialize)]
 #[ts(export, export_to = "Auth.ts")]
 pub struct AuthResponse {
-    pub access_token: String,
-    pub refresh_token: String,
     pub token_type: String,
     pub expires_in: i64,
 }
@@ -65,76 +43,11 @@ impl From<User> for UserResponse {
     }
 }
 
-pub async fn register(
-    State(state): State<AppState>,
-    Json(payload): Json<RegisterRequest>,
-) -> Result<ApiResponse<AuthResponse>, ApiError> {
-    let auth_service = AuthService::new(
-        state.config.jwt_secret.clone(),
-        state.config.jwt_access_expiry,
-        state.config.jwt_refresh_expiry,
-    );
-
-    if User::email_exists(&state.db, &payload.email).await? {
-        return Err(ApiError::UserAlreadyExists);
-    }
-
-    if payload.password != payload.confirm_password {
-        return Err(ApiError::InvalidCredentials);
-    }
-
-    let password_hash = auth_service.hash_password(&payload.password)?;
-
-    let user = User::create(&state.db, &payload.email, &password_hash).await?;
-
-    let access_token = auth_service.generate_access_token(user.id, &user.email)?;
-    let (refresh_token, refresh_hash, expires_at) = auth_service.generate_refresh_token();
-
-    RefreshToken::create(&state.db, user.id, &refresh_hash, expires_at).await?;
-
-    Ok(ApiResponse::ok(AuthResponse {
-        access_token,
-        refresh_token,
-        token_type: "Bearer".to_string(),
-        expires_in: state.config.jwt_access_expiry,
-    }))
-}
-
-pub async fn login(
-    State(state): State<AppState>,
-    Json(payload): Json<LoginRequest>,
-) -> Result<ApiResponse<AuthResponse>, ApiError> {
-    let auth_service = AuthService::new(
-        state.config.jwt_secret.clone(),
-        state.config.jwt_access_expiry,
-        state.config.jwt_refresh_expiry,
-    );
-
-    let user = User::find_by_email(&state.db, &payload.email)
-        .await?
-        .ok_or(ApiError::InvalidCredentials)?;
-
-    if !auth_service.verify_password(&payload.password, &user.password_hash)? {
-        return Err(ApiError::InvalidCredentials);
-    }
-
-    let access_token = auth_service.generate_access_token(user.id, &user.email)?;
-    let (refresh_token, refresh_hash, expires_at) = auth_service.generate_refresh_token();
-
-    RefreshToken::create(&state.db, user.id, &refresh_hash, expires_at).await?;
-
-    Ok(ApiResponse::ok(AuthResponse {
-        access_token,
-        refresh_token,
-        token_type: "Bearer".to_string(),
-        expires_in: state.config.jwt_access_expiry,
-    }))
-}
-
 pub async fn refresh(
     State(state): State<AppState>,
+    jar: CookieJar,
     Json(payload): Json<RefreshRequest>,
-) -> Result<ApiResponse<AuthResponse>, ApiError> {
+) -> Result<(CookieJar, ApiResponse<AuthResponse>), ApiError> {
     let auth_service = AuthService::new(
         state.config.jwt_secret.clone(),
         state.config.jwt_access_expiry,
@@ -167,27 +80,44 @@ pub async fn refresh(
 
     RefreshToken::create(&state.db, user.id, &refresh_hash, expires_at).await?;
 
-    Ok(ApiResponse::ok(AuthResponse {
-        access_token,
-        refresh_token,
-        token_type: "Bearer".to_string(),
-        expires_in: state.config.jwt_access_expiry,
-    }))
+    let cookie = Cookie::build(("refresh_token", refresh_token))
+        .http_only(true)
+        .secure(state.config.cookie_secure)
+        .same_site(SameSite::Strict)
+        .path("/")
+        .max_age(Duration::days(7))
+        .build();
+
+    let access_cookie = Cookie::build(("access_token", access_token))
+        .http_only(true)
+        .secure(state.config.cookie_secure)
+        .same_site(SameSite::Strict)
+        .path("/")
+        .max_age(time::Duration::seconds(900)) // 15min
+        .build();
+
+    Ok((
+        jar.add(cookie).add(access_cookie),
+        ApiResponse::ok(AuthResponse {
+            token_type: "Bearer".to_string(),
+            expires_in: state.config.jwt_access_expiry,
+        }),
+    ))
 }
 
 pub async fn logout(
     State(state): State<AppState>,
-    Extension(auth_user): Extension<AuthenticatedUser>,
+    claims: AccessTokenClaims,
 ) -> Result<impl IntoResponse, ApiError> {
-    RefreshToken::delete_by_user_id(&state.db, auth_user.user_id).await?;
+    RefreshToken::delete_by_user_id(&state.db, claims.user_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn me(
     State(state): State<AppState>,
-    Extension(auth_user): Extension<AuthenticatedUser>,
+    claims: AccessTokenClaims,
 ) -> Result<ApiResponse<UserResponse>, ApiError> {
-    let user = User::find_by_id(&state.db, auth_user.user_id)
+    let user = User::find_by_id(&state.db, claims.user_id)
         .await?
         .ok_or(ApiError::UserNotFound)?;
 

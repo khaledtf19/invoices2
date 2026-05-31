@@ -1,6 +1,6 @@
 import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { Home, FileText, LogInIcon, User } from "lucide-react";
+import { Home, FileText, LogInIcon } from "lucide-react";
 
 import {
   Sidebar,
@@ -23,7 +23,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 const navItems = [
   { title: "Home", url: "/", icon: Home },
   { title: "About", url: "/about", icon: FileText },
-  { title: "Register", url: "/register", icon: User },
   { title: "Login", url: "/login", icon: LogInIcon },
 ];
 

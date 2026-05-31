@@ -1,29 +1,19 @@
 use axum::{
-    middleware,
-    routing::{get, post},
     Router,
+    routing::{get, post},
 };
 
-use crate::{handlers::auth, middleware::auth::jwt_auth_middleware, state::AppState};
+use crate::{
+    handlers::{auth, oauth},
+    state::AppState,
+};
 
 pub fn auth_routes(state: AppState) -> Router {
     Router::new()
-        .route("/register", post(auth::register))
-        .route("/login", post(auth::login))
         .route("/refresh", post(auth::refresh))
-        .route(
-            "/logout",
-            post(auth::logout).layer(middleware::from_fn_with_state(
-                state.clone(),
-                jwt_auth_middleware,
-            )),
-        )
-        .route(
-            "/me",
-            get(auth::me).layer(middleware::from_fn_with_state(
-                state.clone(),
-                jwt_auth_middleware,
-            )),
-        )
+        .route("/logout", post(auth::logout))
+        .route("/me", get(auth::me))
+        .route("/google-auth", get(oauth::google_auth))
+        .route("/google/callback", get(oauth::google_callback))
         .with_state(state)
 }

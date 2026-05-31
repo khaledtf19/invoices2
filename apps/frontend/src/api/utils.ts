@@ -36,8 +36,11 @@ export async function safeFetch<T>(url: string, options?: RequestInit): Promise<
       console.log(`${API_BASE}${url}`, options);
       return fetch(`${API_BASE}${url}`, {
         ...restOptions,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: body != null ? JSON.stringify(body) : undefined,
       });
     },
     catch: (e): NetworkError => new NetworkError({ message: String(e), url, apiError: null }),

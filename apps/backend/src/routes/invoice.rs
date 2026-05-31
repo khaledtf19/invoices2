@@ -1,53 +1,26 @@
 use axum::{
-    Router, middleware,
+    Router,
     routing::{delete, get, post, put},
 };
 
-use crate::{handlers::invoice, middleware::auth::jwt_auth_middleware, state::AppState};
+use crate::{handlers::invoice, state::AppState};
 
 pub fn invoice_routes(state: AppState) -> Router {
     Router::new()
-        .route(
-            "/",
-            post(invoice::create_invoice).layer(middleware::from_fn_with_state(
-                state.clone(),
-                jwt_auth_middleware,
-            )),
-        )
-        .route(
-            "/",
-            get(invoice::list_invoices).layer(middleware::from_fn_with_state(
-                state.clone(),
-                jwt_auth_middleware,
-            )),
-        )
+        .route("/", post(invoice::create_invoice).with_state(state.clone()))
+        .route("/", get(invoice::list_invoices).with_state(state.clone()))
         .route(
             "/customer",
-            get(invoice::list_invoices_by_customer).layer(middleware::from_fn_with_state(
-                state.clone(),
-                jwt_auth_middleware,
-            )),
+            get(invoice::list_invoices_by_customer).with_state(state.clone()),
+        )
+        .route("/{id}", get(invoice::get_invoice).with_state(state.clone()))
+        .route(
+            "/{id}",
+            put(invoice::update_invoice).with_state(state.clone()),
         )
         .route(
             "/{id}",
-            get(invoice::get_invoice).layer(middleware::from_fn_with_state(
-                state.clone(),
-                jwt_auth_middleware,
-            )),
-        )
-        .route(
-            "/{id}",
-            put(invoice::update_invoice).layer(middleware::from_fn_with_state(
-                state.clone(),
-                jwt_auth_middleware,
-            )),
-        )
-        .route(
-            "/{id}",
-            delete(invoice::delete_invoice).layer(middleware::from_fn_with_state(
-                state.clone(),
-                jwt_auth_middleware,
-            )),
+            delete(invoice::delete_invoice).with_state(state.clone()),
         )
         .with_state(state)
 }

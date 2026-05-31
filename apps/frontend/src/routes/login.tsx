@@ -1,130 +1,63 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useForm } from "@tanstack/react-form";
-import { z } from "zod";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
 
-import { useLogin } from "@/hooks/useLogin";
+import { API_BASE } from "@/api/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-
-const loginSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
-});
-
-type LoginValues = z.infer<typeof loginSchema>;
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
 function LoginPage() {
-  const navigate = useNavigate();
-  const login = useLogin();
-
-  const form = useForm({
-    defaultValues: { email: "", password: "" } as LoginValues,
-    validators: {
-      onChange: loginSchema,
-      onSubmit: loginSchema,
-    },
-    onSubmit: async ({ value }) => {
-      try {
-        await login.mutateAsync(value);
-        toast.success("Logged in successfully");
-        await navigate({ to: "/" });
-      } catch (err: any) {
-        toast.error(err?.message || "Login failed");
-      }
-    },
-  });
+  const handleGoogleSignIn = () => {
+    window.location.assign(`${API_BASE}/auth/google-auth`);
+  };
 
   return (
-    <div className="flex min-h-svh items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Sign In</CardTitle>
-          <CardDescription>Enter your credentials to continue</CardDescription>
-        </CardHeader>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            form.handleSubmit();
-          }}
-        >
-          <CardContent className="space-y-4">
-            <form.Field name="email">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor={field.name}>Email</Label>
-                  <Input
-                    id={field.name}
-                    type="email"
-                    placeholder="you@example.com"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  {field.state.meta.errors.length > 0 && (
-                    <p className="text-destructive text-sm">
-                      {typeof field.state.meta.errors[0] === "string"
-                        ? field.state.meta.errors[0]
-                        : (field.state.meta.errors[0] as any)?.message || JSON.stringify(field.state.meta.errors[0])}
-                    </p>
-                  )}
-                </div>
-              )}
-            </form.Field>
-
-            <form.Field name="password">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor={field.name}>Password</Label>
-                  <Input
-                    id={field.name}
-                    type="password"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  {field.state.meta.errors.length > 0 && (
-                    <p className="text-destructive text-sm">
-                      {typeof field.state.meta.errors[0] === "string"
-                        ? field.state.meta.errors[0]
-                        : (field.state.meta.errors[0] as any)?.message || JSON.stringify(field.state.meta.errors[0])}
-                    </p>
-                  )}
-                </div>
-              )}
-            </form.Field>
+    <div className="bg-background min-h-svh text-left">
+      <div className="mx-auto flex min-h-svh w-full max-w-6xl items-center justify-items-center gap-8 px-4 py-8 md:px-8">
+        <Card className="w-full max-w-md justify-self-center md:justify-self-end">
+          <CardHeader className="gap-2">
+            <Badge variant="outline" className="w-fit">
+              Welcome back
+            </Badge>
+            <CardTitle className="text-2xl">Sign in to Invoices</CardTitle>
+            <CardDescription>Use your Google account to continue.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button type="button" variant="outline" size="lg" className="w-full" onClick={handleGoogleSignIn}>
+              <GoogleLogo data-icon="inline-start" />
+              Continue with Google
+            </Button>
           </CardContent>
-          <CardFooter className="flex flex-col gap-3">
-            <form.Subscribe
-              selector={(state) => ({
-                canSubmit: state.canSubmit,
-                isSubmitting: state.isSubmitting,
-              })}
-            >
-              {({ canSubmit, isSubmitting }) => (
-                <Button type="submit" className="w-full" disabled={!canSubmit || login.isPending}>
-                  {(login.isPending || isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {login.isPending || isSubmitting ? "Signing in..." : "Sign In"}
-                </Button>
-              )}
-            </form.Subscribe>
-            <p className="text-muted-foreground text-sm">
-              Don't have an account?{" "}
-              <Link to="/register" className="text-primary hover:text-primary/80 underline">
-                Sign up
-              </Link>
+          <CardFooter>
+            <p className="text-muted-foreground text-center text-sm">
+              Your account is created automatically after Google verifies your email.
             </p>
           </CardFooter>
-        </form>
-      </Card>
+        </Card>
+      </div>
     </div>
+  );
+}
+
+function GoogleLogo(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
+      <path
+        fill="#4285F4"
+        d="M21.8 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.5a4.7 4.7 0 0 1-2 3.1v2.5h3.2c1.9-1.7 3.1-4.3 3.1-7.4z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 22c2.7 0 5-.9 6.7-2.4l-3.2-2.5c-.9.6-2 .9-3.5.9a6.1 6.1 0 0 1-5.7-4.2H3v2.6A10 10 0 0 0 12 22z"
+      />
+      <path fill="#FBBC05" d="M6.3 13.8a6 6 0 0 1 0-3.6V7.6H3a10 10 0 0 0 0 8.8l3.3-2.6z" />
+      <path
+        fill="#EA4335"
+        d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A9.7 9.7 0 0 0 12 2a10 10 0 0 0-9 5.6l3.3 2.6A6.1 6.1 0 0 1 12 6z"
+      />
+    </svg>
   );
 }
