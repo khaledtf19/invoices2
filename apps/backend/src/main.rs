@@ -1,28 +1,70 @@
-use axum::{routing::get, Router, Json};
-use serde::Serialize;
-use tower_http::cors::{CorsLayer, Any};
+mod config;
+mod db;
+pub mod error;
+mod handlers;
+mod middleware;
+mod models;
+mod response;
+mod routes;
+mod services;
+mod state;
 
-#[derive(Serialize)]
-struct Health {
-    status: &'static str,
-}
+use axum::{Router, http::Method, routing::get};
+use serde_json::Value;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 
-async fn health() -> Json<Health> {
-    Json(Health { status: "ok" })
+use crate::{
+    db::pool::create_pool, routes::auth::auth_routes, routes::invoice::invoice_routes,
+    state::AppState,
+};
+
+use crate::services::oauth::build_oauth_client;
+
+async fn health_check() -> Result<response::ApiResponse<Value>, error::ApiError> {
+    Ok(response::ApiResponse::ok(
+        serde_json::json!({ "status": "ok" }),
+    ))
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = config::Config::from_env()?;
+    let frontend_origin = config.frontend_url.parse()?;
+
+    let pool = create_pool(&config.database_url).await?;
+
+    sqlx::migrate!("src/db/migrations").run(&pool).await?;
+
+    let oauth_client = build_oauth_client(
+        config.google_client_id.clone(),
+        config.google_client_secret.clone(),
+        config.google_redirect_url.clone(),
+    )?;
+
+    let state = AppState::new(pool, config, oauth_client);
+
     let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_origin(AllowOrigin::exact(frontend_origin))
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+        .allow_headers([
+            "content-type".parse().unwrap(),
+            "authorization".parse().unwrap(),
+            "cookie".parse().unwrap(),
+        ])
+        .allow_credentials(true);
+
+    tracing_subscriber::fmt::init();
 
     let app = Router::new()
-        .route("/api/health", get(health))
+        .route("/health", get(health_check))
+        .nest("/auth", auth_routes(state.clone()))
+        .nest("/invoices", invoice_routes(state.clone()))
         .layer(cors);
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+    let addr: std::net::SocketAddr = format!("0.0.0.0:{}", port).parse()?;
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    println!("Server is running on http://0.0.0.0:{}", port);
+    axum::serve(listener, app).await?;
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    println!("Backend listening on http://localhost:3000");
-    axum::serve(listener, app).await.unwrap();
+    Ok(())
 }

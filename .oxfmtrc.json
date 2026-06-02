@@ -1,5 +1,7 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": [],
+  "printWidth": 120,
+  "proseWrap": "always",
+  "ignorePatterns": ["node_modules", "dist", "build", "apps/backend/**"],
   "experimentalTailwindcss": {}
 }

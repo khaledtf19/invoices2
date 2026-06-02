@@ -1,0 +1,4 @@
+/apps/backend
+/target
+/node_modules
+!*.svg
